@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>B&W Vector Tracer (Procreate to SVG)</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; background: #121212; color: #f1f1f1; display: flex; flex-direction: column; min-height: 100vh; }
+    header { padding: 14px 20px; background: #1c1c1e; border-bottom: 1px solid #2c2c2e; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    header h1 { margin: 0; font-size: 1.1rem; color: #00e5ff; }
+    .main-container { display: flex; flex: 1; flex-wrap: wrap; }
+    .sidebar { width: 320px; background: #1c1c1e; padding: 18px; border-right: 1px solid #2c2c2e; display: flex; flex-direction: column; gap: 15px; }
+    @media (max-width: 768px) { .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #2c2c2e; } }
+    .control-group { display: flex; flex-direction: column; gap: 6px; }
+    .control-group label { font-size: 0.85rem; color: #b0b0b5; display: flex; justify-content: space-between; }
+    .control-group label span { color: #00e5ff; font-weight: 600; }
+    input[type="range"] { width: 100%; accent-color: #00e5ff; }
+    select, input[type="file"] { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 8px 10px; border-radius: 6px; font-size: 0.9rem; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; cursor: pointer; }
+    button { padding: 11px 12px; border: none; border-radius: 8px; font-weight: 600; font-size: 0.92rem; cursor: pointer; transition: 0.2s; }
+    .btn-primary { background: #00e5ff; color: #000; }
+    .btn-primary:hover { background: #00b8d4; }
+    .btn-primary:disabled { background: #3a3a3c; color: #777; cursor: not-allowed; }
+    .btn-secondary { background: #2c2c2e; color: #e5e5ea; border: 1px solid #444; font-size: 0.85rem; padding: 9px; }
+    .preview-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; background-image: radial-gradient(#2a2a2a 1px, transparent 1px); background-size: 20px 20px; overflow: auto; min-height: 380px; }
+    .canvas-wrapper { background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 100%; max-height: 75vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .canvas-wrapper svg { width: 100%; height: auto; max-height: 75vh; display: block; }
+    .canvas-wrapper.outline-mode svg path { fill: none !important; stroke: #0066ff !important; stroke-width: 1.5px !important; }
+    .status { margin-top: 12px; font-size: 0.85rem; color: #999; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>B&W Vector Tracer → SVG</h1>
+    <div style="font-size: 0.8rem; color: #aaa;">Procreate Hitam-Putih ke Vektor SVG</div>
+  </header>
+  <div class="main-container">
+    <aside class="sidebar">
+      <div class="control-group">
+        <label>1. Pilih Gambar (PNG / JPG)</label>
+        <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp" />
+        <button type="button" class="btn-secondary" id="sampleBtn">Muat Sampel Bawaan</button>
+      </div>
+      <div class="control-group">
+        <label>Threshold (Ketebalan) <span id="threshVal">128</span></label>
+        <input type="range" id="threshold" min="1" max="254" value="128" />
+      </div>
+      <div class="control-group">
+        <label>Hapus Bintik Kecil (Turdsize) <span id="turdVal">4</span></label>
+        <input type="range" id="turdsize" min="0" max="50" value="4" />
+      </div>
+      <div class="control-group">
+        <label>Kehalusan Sudut (Alphamax) <span id="alphaVal">1.0</span></label>
+        <input type="range" id="alphamax" min="0" max="1.34" step="0.05" value="1.0" />
+      </div>
+      <label class="checkbox-row"><input type="checkbox" id="invertCheck" /> Invert Warna (Garis Putih di Latar Gelap)</label>
+      <label class="checkbox-row"><input type="checkbox" id="outlineCheck" /> Mode Preview Outline (Cek Kurva)</label>
+      <hr style="border-color: #2c2c2e; width: 100%; margin: 2px 0;" />
+      <div class="control-group">
+        <label>Ukuran Halaman Ekspor (px)</label>
+        <select id="pagePreset">
+          <option value="source">Sesuai Ukuran Gambar Asli</option>
+          <option value="2000x2000" selected>2000 × 2000 px (Square 4MP)</option>
+          <option value="2500x2500">2500 × 2500 px (Square HD)</option>
+          <option value="3000x2000">3000 × 2000 px (Landscape 3:2)</option>
+          <option value="2000x3000">2000 × 3000 px (Portrait 2:3)</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Margin / Padding Halaman (%) <span id="padVal">8%</span></label>
+        <input type="range" id="paddingRange" min="0" max="25" value="8" />
+      </div>
+      <button class="btn-primary" id="downloadBtn" disabled>Download File SVG</button>
+    </aside>
+    <main class="preview-area">
+      <div class="canvas-wrapper" id="svgContainer"><div style="padding: 60px 40px; color: #555; text-align: center;">Memuat pratinjau...</div></div>
+      <div class="status" id="statusText">Menyiapkan Potrace...</div>
+    </main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/potrace@2.1.8/build/potrace.min.js"></script>
+  <script>
+    const imageInput = document.getElementById('imageInput'), sampleBtn = document.getElementById('sampleBtn'), thresholdEl = document.getElementById('threshold'), turdsizeEl = document.getElementById('turdsize'), alphamaxEl = document.getElementById('alphamax'), invertCheck = document.getElementById('invertCheck'), outlineCheck = document.getElementById('outlineCheck'), pagePreset = document.getElementById('pagePreset'), paddingRange = document.getElementById('paddingRange'), downloadBtn = document.getElementById('downloadBtn'), svgContainer = document.getElementById('svgContainer'), statusText = document.getElementById('statusText');
+    let loadedImage = null, currentSvgString = '';
+    thresholdEl.oninput = () => { document.getElementById('threshVal').textContent = thresholdEl.value; processTrace(); };
+    turdsizeEl.oninput = () => { document.getElementById('turdVal').textContent = turdsizeEl.value; processTrace(); };
+    alphamaxEl.oninput = () => { document.getElementById('alphaVal').textContent = alphamaxEl.value; processTrace(); };
+    paddingRange.oninput = () => { document.getElementById('padVal').textContent = paddingRange.value + '%'; processTrace(); };
+    invertCheck.onchange = processTrace; pagePreset.onchange = processTrace;
+    outlineCheck.onchange = () => svgContainer.classList.toggle('outline-mode', outlineCheck.checked);
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => { const img = new Image(); img.onload = () => { loadedImage = img; processTrace(); }; img.src = ev.target.result; };
+      reader.readAsDataURL(file);
+    });
+    sampleBtn.addEventListener('click', () => {
+      const c = document.createElement('canvas'); c.width = 800; c.height = 800; const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,800,800); ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(400,400,230,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(400,400,145,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#000'; ctx.fillRect(365,100,70,600); ctx.fillRect(100,365,600,70);
+      const img = new Image(); img.onload = () => { loadedImage = img; processTrace(); }; img.src = c.toDataURL('image/png');
+    });
+    function processTrace() {
+      if (!loadedImage) return;
+      const canvas = document.createElement('canvas'), maxDim = 1800;
+      let w = loadedImage.width, h = loadedImage.height;
+      if (w > maxDim || h > maxDim) { const r = Math.min(maxDim/w, maxDim/h); w = Math.round(w*r); h = Math.round(h*r); }
+      canvas.width = w; canvas.height = h; const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(loadedImage,0,0,w,h);
+      if (typeof Potrace === 'undefined') { statusText.textContent = 'Pastikan koneksi internet aktif untuk memuat Potrace.'; return; }
+      Potrace.setParameter({ threshold: +thresholdEl.value, turdsize: +turdsizeEl.value, alphamax: +alphamaxEl.value, optcurve: true, opttolerance: 0.2, blackOnWhite: !invertCheck.checked });
+      Potrace.loadImageFromUrl(canvas.toDataURL('image/png'));
+      Potrace.process(() => {
+        currentSvgString = buildSizedSvg(Potrace.getSVG(1), w, h);
+        svgContainer.innerHTML = currentSvgString; downloadBtn.disabled = false; statusText.textContent = 'Selesai di-trace! Siap unduh SVG.';
+      });
+    }
+    function buildSizedSvg(rawSvg, srcW, srcH) {
+      const doc = new DOMParser().parseFromString(rawSvg, 'image/svg+xml');
+      let pathMarkup = '';
+      doc.querySelectorAll('path').forEach(p => { const d = p.getAttribute('d'); if (d) pathMarkup += '    <path d="' + d + '" fill="#000000" stroke="none"/>\n'; });
+      let targetW = srcW, targetH = srcH;
+      if (pagePreset.value !== 'source') { const parts = pagePreset.value.split('x'); targetW = +parts[0]; targetH = +parts[1]; }
+      const pad = (+paddingRange.value)/100, scale = Math.min((targetW*(1-pad*2))/srcW, (targetH*(1-pad*2))/srcH);
+      const offsetX = (targetW - srcW*scale)/2, offsetY = (targetH - srcH*scale)/2;
+      return '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="' + targetW + '" height="' + targetH + '" viewBox="0 0 ' + targetW + ' ' + targetH + '">\n  <g transform="translate(' + offsetX.toFixed(2) + ', ' + offsetY.toFixed(2) + ') scale(' + scale.toFixed(6) + ')">\n' + pathMarkup + '  </g>\n</svg>';
+    }
+    downloadBtn.addEventListener('click', () => {
+      if (!currentSvgString) return;
+      const url = URL.createObjectURL(new Blob([currentSvgString], { type: 'image/svg+xml;charset=utf-8' }));
+      const a = document.createElement('a'); a.href = url; a.download = 'vector-trace-' + Date.now() + '.svg'; a.click(); URL.revokeObjectURL(url);
+    });
+    window.addEventListener('load', () => sampleBtn.click());
+  </script>
+</body>
+</html>
